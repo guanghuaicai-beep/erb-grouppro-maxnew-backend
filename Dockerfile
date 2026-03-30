@@ -1,20 +1,23 @@
-# 基础 Java 17 镜像（和你本地 JDK 版本保持一致）
+# 基礎 Java 17 鏡像
 FROM eclipse-temurin:19-jdk-alpine
 WORKDIR /app
 
-# 复制 Maven Wrapper 和 pom.xml
+# 複製 Maven Wrapper 和 pom.xml
 COPY mvnw ./
 COPY .mvn ./.mvn
 COPY pom.xml ./
 
-# 下载依赖
+# 下載依賴
 RUN ./mvnw dependency:go-offline -B
 
-# 复制源码
+# 複製原始碼
 COPY src ./src
 
-# 打包（跳过测试）
+# 打包（跳過測試）
 RUN ./mvnw clean package -DskipTests -B
 
-# 启动命令
-CMD ["java", "-jar", "target/*.jar"]
+# 把打包好的 jar 複製到當前目錄，方便啟動
+RUN cp target/*.jar app.jar
+
+# 啟動命令（直接用當前目錄的 app.jar）
+CMD ["java", "-jar", "app.jar"]
