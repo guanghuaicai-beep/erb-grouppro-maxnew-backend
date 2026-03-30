@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,25 +18,14 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/cart")
-
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class CartController {
 
-        @Autowired
-        private CartRepo cartRepo;
-
-        @Autowired
-        private UsersRepo usersRepo;
-
-        @Autowired
-        private CoursesRepo coursesRepo;
-
-        @Autowired
-        private OrdersRepo ordersRepo;
-
-        @Autowired
-        private OrderItemRepo orderItemRepo;
+        private final CartRepo cartRepo;
+        private final UsersRepo usersRepo;
+        private final CoursesRepo coursesRepo;
+        private final OrdersRepo ordersRepo;
+        private final OrderItemRepo orderItemRepo;
 
         // view cart
         @GetMapping
@@ -51,8 +39,8 @@ public class CartController {
                 List<Map<String, Object>> cartItems = cartRepo.findByUser(user).stream()
                                 .map(c -> {
                                         Map<String, Object> item = new HashMap<>();
-                                        item.put("id", c.getId()); // cart item id
-                                        item.put("courseId", c.getCourse().getId()); // course id
+                                        item.put("id", c.getId());
+                                        item.put("courseId", c.getCourse().getId());
                                         item.put("courseName", c.getCourse().getCourseName());
                                         item.put("unitPrice", c.getCourse().getPrice());
                                         item.put("quantity", c.getQuantity());
@@ -81,6 +69,7 @@ public class CartController {
 
                 Cart existing = cartRepo.findByUserAndCourse(user, course);
                 Cart cart;
+
                 if (existing != null) {
                         existing.setQuantity(existing.getQuantity() + req.getQuantity());
                         cart = cartRepo.save(existing);
@@ -89,6 +78,10 @@ public class CartController {
                         cart.setUser(user);
                         cart.setCourse(course);
                         cart.setQuantity(req.getQuantity());
+
+                        // 🔥 關鍵修復：自動填入時間
+                        cart.setCreatedAt(LocalDateTime.now());
+
                         cart = cartRepo.save(cart);
                 }
 
@@ -151,7 +144,6 @@ public class CartController {
 
         @PutMapping("/update/{id}")
         public ResponseEntity<?> updateQuantity(@PathVariable Integer id, @RequestParam int quantity) {
-
                 Cart cart = cartRepo.findById(id)
                                 .orElseThrow(() -> new RuntimeException("Cart item not found: " + id));
 
@@ -191,5 +183,4 @@ public class CartController {
 
                 return ResponseEntity.ok(Map.of("message", "All courses have been removed from cart"));
         }
-
 }
