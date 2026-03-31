@@ -16,48 +16,53 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import static org.springframework.security.config.Customizer.withDefaults;
+
 import com.nick.myApp.models.Users;
 import com.nick.myApp.repos.UsersRepo;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // 🔥 只注入 UsersRepo，不注入 JwtFilter → 解除循环依赖！
+    // 正确注入
     private final UsersRepo usersRepo;
+    private final JwtAuthenticationFilter jwtFilter;
 
-    public SecurityConfig(UsersRepo usersRepo) {
+    // 正确构造函数
+    public SecurityConfig(UsersRepo usersRepo, JwtAuthenticationFilter jwtFilter) {
         this.usersRepo = usersRepo;
+        this.jwtFilter = jwtFilter;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter)
-            throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(withDefaults())
+                // 🔥 关键：让 Spring 使用你写的 CorsConfig
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/logout").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/forget_password").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/reset_password").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/courses/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/register", "/login", "/logout", "/forget_password",
+                                "/reset_password")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/courses/**", "/categories/**").permitAll()
                         .requestMatchers("/error").permitAll()
-
-                        // 🔥 需要登录
                         .requestMatchers("/wishlist/**").authenticated()
                         .requestMatchers("/cart/**").authenticated()
                         .requestMatchers("/orders/**").authenticated()
-
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // 🔥 关键：引入你的 CORS 配置
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        return new CorsConfig().corsConfigurationSource();
     }
 
     @Bean
@@ -70,7 +75,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // 登录用
     @Bean
     public UserDetailsService userDetailsService() {
         return identifier -> {
