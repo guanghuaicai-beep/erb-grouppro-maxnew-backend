@@ -23,7 +23,8 @@ public class CorsConfig {
                 "http://localhost:5174",
                 "https://*.ngrok-free.dev",
                 "https://erb-group-project-ngrok.netlify.app",
-                "https://erb-backend-kuh8.onrender.com"));
+                "https://erb-backend-kuh8.onrender.com",
+                "https://erb-group.onrender.com"));
 
         // 允許所有 header（包含 Authorization）
         config.setAllowedHeaders(List.of("*"));
