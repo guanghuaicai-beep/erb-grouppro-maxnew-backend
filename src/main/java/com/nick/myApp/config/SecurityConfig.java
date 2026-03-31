@@ -16,22 +16,22 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import static org.springframework.security.config.Customizer.withDefaults;
+import com.nick.myApp.config.JwtAuthenticationFilter; // 🔥 這行必須加！
+import org.springframework.context.annotation.Lazy;
 
 import com.nick.myApp.models.Users;
 import com.nick.myApp.repos.UsersRepo;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // 正确注入
     private final UsersRepo usersRepo;
     private final JwtAuthenticationFilter jwtFilter;
 
-    // 正确构造函数
-    public SecurityConfig(UsersRepo usersRepo, JwtAuthenticationFilter jwtFilter) {
+    // 🔥 加上 @Lazy 才能打破循環依賴
+    public SecurityConfig(UsersRepo usersRepo, @Lazy JwtAuthenticationFilter jwtFilter) {
         this.usersRepo = usersRepo;
         this.jwtFilter = jwtFilter;
     }
@@ -40,8 +40,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                // 🔥 关键：让 Spring 使用你写的 CorsConfig
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/register", "/login", "/logout", "/forget_password",
@@ -53,16 +52,10 @@ public class SecurityConfig {
                         .requestMatchers("/cart/**").authenticated()
                         .requestMatchers("/orders/**").authenticated()
                         .anyRequest().authenticated())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // ✅ 修正這行
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    // 🔥 关键：引入你的 CORS 配置
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        return new CorsConfig().corsConfigurationSource();
     }
 
     @Bean
